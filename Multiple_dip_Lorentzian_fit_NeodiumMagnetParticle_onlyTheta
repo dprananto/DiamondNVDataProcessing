@@ -1,0 +1,134 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as pl
+from scipy.optimize import leastsq
+from scipy.signal import argrelmin
+from numpy import random 
+import sys
+#from numpy import NaN, Inf, arange, isscalar, asarray, array
+
+Data = pd.read_csv ('/home/dwi/ownCloud/Anlabshared/Dwi/Data and Analysis/160705/2016_07_05_pos2.csv')
+Data.columns = ['Microwave frequency', 'Intensity']
+x = np.array(Data['Microwave frequency'])
+y = np.array(Data['Intensity']/Data['Intensity'].max())
+
+
+dipind = argrelmin(y, order=19, mode='clip')
+ind = np.array(dipind[0])
+
+xdip = x[dipind]
+ydip = y[dipind]
+
+############################## INITIAL PARAMETERS###############################
+p = [5*10**6, 5*10**6, 5*10**6, 5*10**6, 0.03, 0.03, 0.03, 0.03,9*10**(-4), 0.01, 109.5, 109.5, 109.5]  
+# [HWHM1-4, dip 1-4, B0, Theta 1-4, Phi 1-4]
+# [optimal parameters]  p = [4*10**6, 4*10**6, 4*10**6, 4*10**6, 4*10**6, 4*10**6, 4*10**6, 4*10**6, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 7*10**(-4), 0.001, 10, 100, 100, 0.001, 1, 5, 0]  
+################################################################################
+
+############################# LORENTZIAN FUNCTION ##############################
+def Lorentzian(x, p):
+    num = p[0]**2
+    num2 = p[1]*2
+    num3= p[2]**2
+    num4 = p[3]**2
+    num5 = p[3]**2
+    num6 = p[2]**2
+    num7 = p[1]**2
+    num8 = p[0]**2
+    denum = ( x - (2.87*10**9 - (28*10**9 * p[8] * np.cos(p[9]*np.pi/180.0))))**2 + p[0]**2
+    denum2 = ( x - (2.87*10**9 - (28*10**9 * p[8] * np.cos(p[10]*np.pi/180.0))))**2 + p[1]**2
+    denum3 = ( x - (2.87*10**9 - (28*10**9 * p[8] * np.cos(p[11]*np.pi/180.0))))**2 + p[2]**2
+    denum4 = ( x - (2.87*10**9 - (28*10**9 * p[8] * np.cos(p[12]*np.pi/180.0))))**2 + p[3]**2
+    denum5 = ( x - (2.87*10**9 + (28*10**9 * p[8] * np.cos(p[12]*np.pi/180.0))))**2 + p[3]**2
+    denum6 = ( x - (2.87*10**9 + (28*10**9 * p[8] * np.cos(p[11]*np.pi/180.0))))**2 + p[2]**2
+    denum7 = ( x - (2.87*10**9 + (28*10**9 * p[8] * np.cos(p[10]*np.pi/180.0))))**2 + p[1]**2
+    denum8 = ( x - (2.87*10**9 + (28*10**9 * p[8] * np.cos(p[9]*np.pi/180.0))))**2 + p[0]**2
+    Lor = p[4]*(num/denum)/np.pi
+    Lor2 = p[5]*(num2/denum2)/np.pi
+    Lor3 = p[6]*(num3/denum3)/np.pi
+    Lor4 = p[7]*(num4/denum4)/np.pi
+    Lor5 = p[7]*(num5/denum5)/np.pi
+    Lor6 = p[6]*(num6/denum6)/np.pi
+    Lor7 = p[5]*(num7/denum7)/np.pi
+    Lor8 = p[4]*(num8/denum8)/np.pi
+    return 1 - (Lor + Lor2 + Lor3 + Lor4 + Lor5 + Lor6 + Lor7 + Lor8)
+
+############################### LEAST-SQUARE FIT ###############################
+
+def residuals(p, y, x):
+    return y - Lorentzian(x, p)
+
+pbest = leastsq(residuals, p ,args=(y,x),full_output=1)
+best_parameters1 = pbest[0]
+
+fit = Lorentzian(x,best_parameters1)
+
+################# INDIVIDUAL ESR SPECTRA ########################################
+num = best_parameters1[0]**2
+num2 = best_parameters1[1]**2
+num3 = best_parameters1[2]**2
+num4 = best_parameters1[3]**2
+num5 = best_parameters1[3]**2
+num6 = best_parameters1[2]**2
+num7 = best_parameters1[1]**2
+num8 = best_parameters1[0]**2
+denum = ( x - (2.87*10**9 - (28*10**9 * best_parameters1[8] * np.cos(best_parameters1[9]*np.pi/180.0))))**2 + best_parameters1[0]**2
+denum2 = ( x - (2.87*10**9 - (28*10**9 * best_parameters1[8] * np.cos(best_parameters1[10]*np.pi/180.0))))**2 + best_parameters1[1]**2
+denum3 = ( x - (2.87*10**9 - (28*10**9 * best_parameters1[8] * np.cos(best_parameters1[11]*np.pi/180.0))))**2 + best_parameters1[2]**2
+denum4 = ( x - (2.87*10**9 - (28*10**9 * best_parameters1[8] * np.cos(best_parameters1[12]*np.pi/180.0))))**2 + best_parameters1[3]**2
+denum5 = ( x - (2.87*10**9 + (28*10**9 * best_parameters1[8] * np.cos(best_parameters1[12]*np.pi/180.0))))**2 + best_parameters1[3]**2
+denum6 = ( x - (2.87*10**9 + (28*10**9 * best_parameters1[8] * np.cos(best_parameters1[11]*np.pi/180.0))))**2 + best_parameters1[2]**2
+denum7 = ( x - (2.87*10**9 + (28*10**9 * best_parameters1[8] * np.cos(best_parameters1[10]*np.pi/180.0))))**2 + best_parameters1[1]**2
+denum8 = ( x - (2.87*10**9 + (28*10**9 * best_parameters1[8] * np.cos(best_parameters1[9]*np.pi/180.0))))**2 + best_parameters1[0]**2
+Lor = 1-(best_parameters1[4]*(num/denum)/np.pi)
+Lor2 = 1-(best_parameters1[5]*(num2/denum2)/np.pi)
+Lor3 = 1-(best_parameters1[6]*(num3/denum3)/np.pi)
+Lor4 = 1-(best_parameters1[7]*(num4/denum4)/np.pi)
+Lor5 = 1-(best_parameters1[7]*(num5/denum5)/np.pi)
+Lor6 = 1-(best_parameters1[6]*(num6/denum6)/np.pi)
+Lor7 = 1-(best_parameters1[5]*(num7/denum7)/np.pi)
+Lor8 = 1-(best_parameters1[4]*(num8/denum8)/np.pi)
+
+#Lorentzian = 1 - (Lor + Lor2 + Lor3 + Lor4 + Lor5 + Lor6 + Lor7 + Lor8)
+################################################################################
+pl.rc('text', usetex=True)
+pl.rc('font', family='serif')
+pl.plot (x, y, lw = 1.5, label = 'Experiment')
+#pl.plot (x[dipind],y[dipind], 'ro')
+pl.plot(x, fit, lw=1.5, color = 'r', label = r"Least-square fit") 
+pl.plot (x, Lor, color = 'g', label = r"NV1")
+pl.plot (x, Lor8, color = 'g')
+pl.plot (x, Lor2, color = 'y', label = r"NV2")
+pl.plot (x, Lor7, color = 'y')
+pl.plot (x, Lor3, color = 'c', label = r"NV3")
+pl.plot (x, Lor6, color = 'c')
+pl.plot (x, Lor4, color = 'm', label = r"NV4")
+pl.plot (x, Lor5, color = 'm')
+#pl.plot (x, Lorentzian)
+pl.xlabel('Microwave frequency (GHz)', fontsize = 18)
+pl.ylabel('Intensity (norm.)', fontsize = 18)
+pl.title (r"Position 1")
+pl.legend(loc = 4)
+pl.show()
+#print dipind
+#print ind[1]
+#print x[ind[1]]
+#print p[1]
+#print Lor
+print "NV1:"
+print "B0 =" + str(best_parameters1[8])+r"T"
+print "Theta1 =" + str(best_parameters1[9])
+#print "Phi1 =" + str(best_parameters1[13])
+print "NV2:"
+print "B0 =" + str(best_parameters1[8])+"T"
+print "Theta2 =" + str(best_parameters1[10])
+#print "Phi2 =" + str(best_parameters1[14])
+print "NV3:"
+print "B0 =" + str(best_parameters1[8])+"T"
+print "Theta3 =" + str(best_parameters1[11])
+#print "Phi3 =" + str(best_parameters1[15])
+print "NV4:"
+print "B0 =" + str(best_parameters1[8])+"T"
+print "Theta4 =" + str(best_parameters1[12])
+#print "Phi4 =" + str(best_parameters1[16])
+#print best_parameters1[8]
